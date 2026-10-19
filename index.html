@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>質數跑酷 Prime Parkour - 互動數學遊戲</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .num-font {
+            font-family: 'Fredoka', 'Noto Sans TC', sans-serif;
+        }
+        .game-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 0 #1e293b, 0 8px 15px rgba(0,0,0,0.4);
+        }
+        .game-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #1e293b, 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .jump-btn-style {
+            box-shadow: 0 6px 0 #0284c7, 0 10px 20px rgba(2, 132, 199, 0.4);
+        }
+        .jump-btn-style:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #0284c7, 0 4px 10px rgba(2, 132, 199, 0.4);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 1rem;
+        }
+        @keyframes pulse-slow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 2.2s infinite ease-in-out;
+        }
+        /* Custom scrollbar for modals */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950">
+
+    <header class="w-full max-w-5xl flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 bg-slate-800/80 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-lg mb-2">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md font-black text-slate-900 text-xl num-font">
+                P
+            </div>
+            <div>
+                <h1 class="text-lg sm:text-xl font-black tracking-wide bg-gradient-to-r from-amber-300 via-yellow-200 to-cyan-300 bg-clip-text text-transparent">
+                    質數跑酷 Prime Parkour
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">熟悉 100 內質數・鍛鍊瞬間反應與手速</p>
+            </div>
+        </div>
+
+        <!-- Top Controls -->
+        <div class="flex items-center gap-2">
+            <button id="btn-prime-chart" class="game-btn bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 border border-indigo-400/30">
+                <span>📖</span> <span class="hidden md:inline">100內</span>質數表
+            </button>
+            <button id="btn-rules" class="game-btn bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 border border-slate-500/30">
+                <span>💡</span> 規則與攻略
+            </button>
+            <button id="btn-sound" class="game-btn bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs sm:text-sm font-bold p-2 rounded-xl border border-slate-500/30" title="切換音效">
+                <span id="sound-icon">🔊</span>
+            </button>
+            <button id="btn-pause" class="game-btn bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-bold px-3 py-2 rounded-xl border border-amber-400/30 hidden">
+                ⏸️ 暫停
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-5xl flex-1 flex flex-col items-center justify-center relative my-1">
+        <div id="canvas-wrapper" class="w-full aspect-[16/9] max-h-[68vh] bg-slate-900 rounded-2xl border-2 border-slate-700/90 shadow-2xl relative overflow-hidden">
+            
+            <!-- Game Canvas -->
+            <canvas id="gameCanvas"></canvas>
+
+            <!-- Live HUD Overlay -->
+            <div id="hud-overlay" class="absolute top-0 left-0 right-0 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+                <!-- Hearts & Level -->
+                <div class="flex items-center gap-2 sm:gap-3 bg-slate-900/80 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-700/80 shadow">
+                    <div class="flex items-center gap-1" id="hearts-display">
+                        <!-- Rendered via JS -->
+                    </div>
+                    <div class="h-4 w-[1px] bg-slate-700"></div>
+                    <div class="text-xs sm:text-sm font-bold text-cyan-300 flex items-center gap-1">
+                        <span>🚩 第 <span id="level-num" class="num-font text-base text-white">1</span> / 3 關</span>
+                    </div>
+                </div>
+
+                <!-- Level Progress Bar -->
+                <div class="hidden md:flex flex-col flex-1 max-w-xs mx-4 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700/80">
+                    <div class="flex justify-between text-[11px] text-slate-300 font-bold mb-1">
+                        <span id="level-range-text">範圍：2 ~ 30</span>
+                        <span id="progress-percent" class="num-font">0%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 w-0 transition-all duration-150"></div>
+                    </div>
+                </div>
+
+                <!-- Score & Combo -->
+                <div class="flex items-center gap-3 bg-slate-900/80 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-700/80 shadow">
+                    <div class="text-right">
+                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">SCORE</div>
+                        <div id="score-display" class="text-lg sm:text-2xl font-black text-amber-400 num-font leading-none">0</div>
+                    </div>
+                    <div id="combo-badge" class="hidden bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-black px-2 py-1 rounded-lg shadow num-font">
+                        x1
+                    </div>
+                </div>
+            </div>
+
+            <!-- Last Number Feedback Banner -->
+            <div id="math-toast" class="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 -translate-y-2 z-10">
+                <div id="math-toast-inner" class="px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm shadow-lg border backdrop-blur-md">
+                    <!-- Dynamic feedback -->
+                </div>
+            </div>
+
+            <!-- Start / Overlay Screen -->
+            <div id="screen-start" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-4 z-20">
+                <div class="max-w-lg w-full bg-slate-900 border border-slate-700 rounded-3xl p-5 sm:p-7 shadow-2xl text-center">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold mb-3">
+                        <span>🏃‍♂️ 國中數學 108課綱・100內質數挑戰</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-4xl font-black text-white mb-2 tracking-tight">
+                        質數跑酷 <span class="text-amber-400 num-font">Prime Parkour</span>
+                    </h2>
+                    <p class="text-slate-300 text-xs sm:text-sm mb-5">
+                        邊跑邊判斷 100 以內的質數！考驗你的眼力、心算與手速！
+                    </p>
+
+                    <!-- Mini Legend Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-left mb-5 bg-slate-800/70 p-3 rounded-2xl border border-slate-700/60 text-xs">
+                        <div class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900/60">
+                            <span class="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 font-black flex items-center justify-center num-font text-xs">17</span>
+                            <div>
+                                <div class="font-bold text-emerald-300">質數球</div>
+                                <div class="text-[11px] text-slate-400">+10 分</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900/60">
+                            <span class="w-6 h-6 rounded-full bg-amber-400 text-slate-950 font-black flex items-center justify-center num-font text-xs">21</span>
+                            <div>
+                                <div class="font-bold text-rose-300">非質數球</div>
+                                <div class="text-[11px] text-slate-400">-5 分 & -1 ❤️</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900/60">
+                            <span class="text-base">💎</span>
+                            <div>
+                                <div class="font-bold text-cyan-300">藍寶石</div>
+                                <div class="text-[11px] text-slate-400">+1 分</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900/60">
+                            <span class="text-base">🧪</span>
+                            <div>
+                                <div class="font-bold text-pink-300">紅藥水</div>
+                                <div class="text-[11px] text-slate-400">恢復 +1 ❤️</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900/60">
+                            <span class="text-base">🚧</span>
+                            <div>
+                                <div class="font-bold text-orange-300">尖刺障礙</div>
+                                <div class="text-[11px] text-slate-400">撞到 -1 ❤️</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-900/60">
+                            <span class="text-base">🕳️</span>
+                            <div>
+                                <div class="font-bold text-red-400">無底洞</div>
+                                <div class="text-[11px] text-slate-400">掉落直接結束</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Priority Tip -->
+                    <div class="bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-2.5 mb-5 text-xs text-indigo-200">
+                        <span class="font-bold text-amber-300">⭐ 建議優先順序：</span>
+                        避開洞 ➔ 避開障礙物和非質數 ➔ 吃紅藥水 ➔ 吃質數 ➔ 吃藍寶石
+                    </div>
+
+                    <!-- Level Select or Start -->
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <button id="btn-start-game" class="w-full sm:w-auto flex-1 jump-btn-style bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-400 hover:to-cyan-400 text-slate-950 font-black text-base sm:text-lg py-3 px-8 rounded-2xl animate-pulse-slow">
+                            🚀 開始第一關挑戰
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Level Transition Overlay -->
+            <div id="screen-level-up" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-4 z-20">
+                <div class="max-w-md w-full bg-slate-900 border border-emerald-500/50 rounded-3xl p-6 shadow-2xl text-center">
+                    <div class="text-4xl mb-2">🎉</div>
+                    <h3 id="level-clear-title" class="text-2xl sm:text-3xl font-black text-emerald-400 mb-2">第一關突破！</h3>
+                    <p id="level-clear-desc" class="text-slate-300 text-sm mb-5">
+                        準備進入下一關！數字範圍將擴大，奔跑速度也會加快！
+                    </p>
+                    <div class="bg-slate-800/80 rounded-2xl p-3 mb-5 flex justify-around text-sm">
+                        <div>
+                            <div class="text-slate-400 text-xs">目前分數</div>
+                            <div id="level-clear-score" class="text-xl font-black text-amber-400 num-font">0</div>
+                        </div>
+                        <div>
+                            <div class="text-slate-400 text-xs">剩餘愛心</div>
+                            <div id="level-clear-hearts" class="text-xl font-black text-rose-400 num-font">3</div>
+                        </div>
+                    </div>
+                    <button id="btn-next-level" class="w-full jump-btn-style bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-lg py-3 px-6 rounded-2xl">
+                        ⚡ 進入下一關
+                    </button>
+                </div>
+            </div>
+
+            <!-- Game Over / Victory Screen -->
+            <div id="screen-gameover" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 z-20 overflow-y-auto">
+                <div class="max-w-lg w-full bg-slate-900 border border-slate-700 rounded-3xl p-5 sm:p-6 shadow-2xl text-center my-auto">
+                    <div id="end-emoji" class="text-4xl mb-1">💥</div>
+                    <h3 id="end-title" class="text-2xl sm:text-3xl font-black text-white mb-1">遊戲結束</h3>
+                    <p id="end-reason" class="text-xs sm:text-sm text-rose-300 font-bold mb-4">掉進無底洞裡了！</p>
+
+                    <div class="grid grid-cols-3 gap-2 bg-slate-800/90 p-3 rounded-2xl border border-slate-700 mb-4">
+                        <div>
+                            <div class="text-[11px] text-slate-400">最終得分</div>
+                            <div id="end-score" class="text-xl sm:text-2xl font-black text-amber-400 num-font">0</div>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400">收集質數</div>
+                            <div id="end-primes" class="text-xl sm:text-2xl font-black text-emerald-400 num-font">0</div>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400">最高關卡</div>
+                            <div id="end-level" class="text-xl sm:text-2xl font-black text-cyan-400 num-font">1 / 3</div>
+                        </div>
+                    </div>
+
+                    <!-- Review Section for Mistakes & Collected Primes -->
+                    <div id="review-box" class="text-left bg-slate-950/80 border border-slate-800 rounded-2xl p-3 mb-4 max-h-36 overflow-y-auto text-xs">
+                        <div class="font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+                            <span>🧐 本局數學回顧：</span>
+                            <span class="text-[11px] text-slate-400">熟記因數分解更不容易錯！</span>
+                        </div>
+                        <div id="review-list" class="space-y-1 text-slate-300">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-2.5">
+                        <button id="btn-retry-same" class="flex-1 game-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-2xl text-sm">
+                            🔄 重玩本關
+                        </button>
+                        <button id="btn-restart-all" class="flex-1 jump-btn-style bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-400 hover:to-cyan-400 text-slate-950 font-black py-3 px-4 rounded-2xl text-sm">
+                            🏆 從第一關重新挑戰
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="w-full max-w-5xl mt-1">
+        <div class="bg-slate-800/80 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 sm:p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+            
+            <!-- Priority Reminder -->
+            <div class="flex items-center gap-2 text-xs text-slate-300">
+                <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-400/30 shrink-0">操作提示</span>
+                <span>按 <kbd class="px-1.5 py-0.5 bg-slate-900 rounded border border-slate-600 font-mono text-cyan-300">空白鍵</kbd> / <kbd class="px-1.5 py-0.5 bg-slate-900 rounded border border-slate-600 font-mono text-cyan-300">↑</kbd> 或點擊畫面跳躍（空中可<b>二段跳</b>！）</span>
+            </div>
+
+            <!-- Interactive Jump & Quick Level Buttons -->
+            <div class="w-full sm:w-auto flex flex-wrap items-center justify-end gap-2">
+                <!-- Speed Selector (Default: Slow for Educational Purpose) -->
+                <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-700">
+                    <span class="text-[11px] text-amber-300 px-2 font-bold">速度:</span>
+                    <button data-spd="0.65" class="spd-select-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-400 text-slate-950">🐢 慢速(教學)</button>
+                    <button data-spd="1.0" class="spd-select-btn px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800">🐇 正常</button>
+                    <button data-spd="1.3" class="spd-select-btn px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800">⚡ 極速</button>
+                </div>
+
+                <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-700">
+                    <span class="text-[11px] text-slate-400 px-2 font-bold">選關:</span>
+                    <button data-lv="1" class="lv-select-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950">Lv.1</button>
+                    <button data-lv="2" class="lv-select-btn px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800">Lv.2</button>
+                    <button data-lv="3" class="lv-select-btn px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800">Lv.3</button>
+                </div>
+
+                <button id="btn-touch-jump" class="flex-1 sm:flex-initial jump-btn-style bg-gradient-to-r from-sky-500 to-cyan-400 active:from-sky-600 active:to-cyan-500 text-slate-950 font-black px-6 py-2.5 rounded-xl text-sm sm:text-base flex items-center justify-center gap-2">
+                    <span>⬆️ 跳躍 / 二段跳</span>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal: 100 Primes Chart -->
+    <div id="modal-primes" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                <div>
+                    <h3 class="text-lg sm:text-xl font-black text-amber-300">📖 100 以內的質數圖鑑（共 25 個）</h3>
+                    <p class="text-xs text-slate-400">綠色方塊為「質數」（只能被 1 和自己整除），點擊任意數字可查看解析！</p>
+                </div>
+                <button id="close-primes-modal" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold">✕</button>
+            </div>
+
+            <div id="prime-grid" class="grid grid-cols-10 gap-1.5 sm:gap-2 overflow-y-auto p-1 flex-1">
+                <!-- Populated by JS -->
+            </div>
+
+            <div id="prime-detail-bar" class="mt-4 bg-slate-800/90 border border-slate-700 rounded-xl p-3 text-xs sm:text-sm text-center font-bold text-cyan-300">
+                👆 點擊上方數字即可查看它是「質數」還是「合數（含因數分解）」！
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Rules & Strategy -->
+    <div id="modal-rules" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                <h3 class="text-lg sm:text-xl font-black text-cyan-300">💡 質數跑酷：規則與通關秘笈</h3>
+                <button id="close-rules-modal" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold">✕</button>
+            </div>
+
+            <div class="space-y-4 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                <div class="bg-slate-800/70 p-3.5 rounded-2xl border border-slate-700">
+                    <div class="font-black text-amber-300 mb-1">🎯 計分與愛心規則</div>
+                    <ul class="space-y-1.5 list-disc list-inside">
+                        <li>吃到 <span class="text-emerald-400 font-bold">「質數」</span>：<b>+10 分</b>（連續答對還有 Combo 加成！）</li>
+                        <li>吃到 <span class="text-cyan-400 font-bold">「藍寶石 💎」</span>：<b>+1 分</b></li>
+                        <li>吃到 <span class="text-rose-400 font-bold">「非質數（1 或合數）」</span>：<b>扣 5 分</b> 且 <b>扣 1 顆心 ❤️</b></li>
+                        <li>吃到 <span class="text-pink-400 font-bold">「紅藥水 🧪」</span>：<b>加 1 顆心 ❤️</b>（上限 5 顆心）</li>
+                        <li>撞到 <span class="text-orange-400 font-bold">「地面障礙物 🚧」</span>：<b>扣 1 顆心 ❤️</b></li>
+                        <li>掉進 <span class="text-red-400 font-bold">「無底洞 🕳️」</span>：<b>直接遊戲結束！</b></li>
+                    </ul>
+                </div>
+
+                <div class="bg-indigo-950/70 p-3.5 rounded-2xl border border-indigo-500/40">
+                    <div class="font-black text-indigo-300 mb-1">🏆 專家建議優先順序</div>
+                    <p class="text-indigo-200 font-bold">
+                        避開洞 ➔ 避開障礙物和非質數 ➔ 吃紅藥水 ➔ 吃質數 ➔ 吃藍寶石
+                    </p>
+                </div>
+
+                <div class="bg-slate-800/70 p-3.5 rounded-2xl border border-slate-700">
+                    <div class="font-black text-emerald-300 mb-1">🧠 秒判 100 內偽質數口訣（最常騙人的合數！）</div>
+                    <ul class="space-y-1 list-disc list-inside text-slate-300">
+                        <li><b>1 不是質數</b>也不是合數，千萬別吃！</li>
+                        <li><b>51</b> = 3 × 17、<b>57</b> = 3 × 19（數字和是 3 的倍數）</li>
+                        <li><b>87</b> = 3 × 29、<b>93</b> = 3 × 31</li>
+                        <li><b>49</b> = 7 × 7、<b>77</b> = 7 × 11、<b>91</b> = 7 × 13（大魔王 91 最常讓人中招！）</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Prime Math Engine (1 to 100) ---
+        const PRIMES_UNDER_100 = new Set([
+            2, 3, 5, 7, 11, 13, 17, 19, 23, 29,
+            31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
+            73, 79, 83, 89, 97
+        ]);
+
+        // Tricky composite numbers often mistaken for primes in Stage 2 & 3
+        const TRICKY_COMPOSITES = [1, 9, 15, 21, 25, 27, 33, 35, 39, 45, 49, 51, 55, 57, 63, 65, 69, 75, 77, 81, 85, 87, 91, 93, 95, 99];
+
+        function isPrime(n) {
+            return PRIMES_UNDER_100.has(n);
+        }
+
+        function getFactorExplanation(n) {
+            if (n === 1) return "1 不是質數也不是合數（只有 1 個因數）";
+            if (isPrime(n)) return `${n} 是質數（只有 1 和 ${n} 兩個因數）`;
+            for (let i = 2; i <= Math.sqrt(n); i++) {
+                if (n % i === 0) {
+                    return `${n} 是非質數（${n} = ${i} × ${n / i}）`;
+                }
+            }
+            return `${n} 是非質數`;
+        }
+
+        // --- 2. Web Audio Sound Synthesizer (No external audio files needed) ---
+        class SoundFX {
+            constructor() {
+                this.enabled = true;
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            playTone(freq, type, duration, vol = 0.12, slideFreq = null) {
+                if (!this.enabled) return;
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    if (slideFreq) {
+                        osc.frequency.exponentialRampToValueAtTime(slideFreq, this.ctx.currentTime + duration);
+                    }
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {
+                    // Ignore audio restriction errors
+                }
+            }
+            jump(double = false) {
+                this.playTone(double ? 420 : 280, 'sine', 0.16, 0.12, double ? 720 : 520);
+            }
+            primeGood() {
+                this.playTone(587.33, 'triangle', 0.1, 0.15);
+                setTimeout(() => this.playTone(880, 'triangle', 0.18, 0.15), 70);
+            }
+            gemGood() {
+                this.playTone(987.77, 'sine', 0.09, 0.08, 1318.5);
+            }
+            potionGood() {
+                this.playTone(523.25, 'sine', 0.1, 0.14);
+                setTimeout(() => this.playTone(659.25, 'sine', 0.1, 0.14), 80);
+                setTimeout(() => this.playTone(783.99, 'sine', 0.2, 0.14), 160);
+            }
+            hurt() {
+                this.playTone(190, 'sawtooth', 0.25, 0.16, 85);
+            }
+            pitFall() {
+                this.playTone(300, 'sawtooth', 0.45, 0.18, 55);
+            }
+            levelClear() {
+                const notes = [523.25, 659.25, 783.99, 1046.5];
+                notes.forEach((n, idx) => {
+                    setTimeout(() => this.playTone(n, 'triangle', 0.18, 0.15), idx * 90);
+                });
+            }
+        }
+
+        const sfx = new SoundFX();
+
+        // --- 3. Level Configurations (3 Levels total, matching original game) ---
+        const LEVEL_CONFIGS = {
+            1: {
+                name: "第一關：質數新手村",
+                minNum: 1,
+                maxNum: 35,
+                speed: 235,           // 降低基礎速度，搭配預設慢速更適合思考
+                targetDistance: 3600, // 配合慢速調整關卡長度
+                pitChance: 0.14,
+                obstacleChance: 0.22,
+                skyTop: "#0f172a",
+                skyBottom: "#1e3a8a",
+                groundColor: "#10b981",
+                dirtColor: "#064e3b"
+            },
+            2: {
+                name: "第二關：偽質數叢林",
+                minNum: 2,
+                maxNum: 70,
+                speed: 275,
+                targetDistance: 4600,
+                pitChance: 0.20,
+                obstacleChance: 0.28,
+                skyTop: "#1e1b4b",
+                skyBottom: "#4c1d95",
+                groundColor: "#f59e0b",
+                dirtColor: "#451a03"
+            },
+            3: {
+                name: "第三關：百內極速聖殿",
+                minNum: 11,
+                maxNum: 99,
+                speed: 315,
+                targetDistance: 5600,
+                pitChance: 0.24,
+                obstacleChance: 0.34,
+                skyTop: "#31102f",
+                skyBottom: "#701a75",
+                groundColor: "#06b6d4",
+                dirtColor: "#083344"
+            }
+        };
+
+        // Virtual coordinate system (960 x 540) scaled dynamically to responsive canvas
+        const V_WIDTH = 960;
+        const V_HEIGHT = 540;
+        const GROUND_Y = 430;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let gameState = {
+            status: 'START', // START, PLAYING, PAUSED, LEVEL_UP, GAMEOVER
+            level: 1,
+            selectedStartLevel: 1,
+            speedMultiplier: 0.65, // 預設為「慢速（教學模式）」，讓學生有充分時間思考質數
+            score: 0,
+            hearts: 3,
+            maxHearts: 5,
+            combo: 0,
+            distance: 0,
+            primesCollected: 0,
+            invincibleTimer: 0,
+            screenShake: 0,
+            historyLog: [] // Records recent numbers eaten/hit for post-game math review
+        };
+
+        // Player Entity
+        const player = {
+            x: 155,
+            y: GROUND_Y,
+            width: 46,
+            height: 54,
+            vy: 0,
+            gravity: 1950,
+            jumpForce: -690,
+            doubleJumpForce: -610,
+            jumpsLeft: 2,
+            isGrounded: true,
+            runCycle: 0,
+            rotation: 0
+        };
+
+        // World Entities
+        let groundSegments = []; // { startX, endX, isPit }
+        let items = [];          // { x, y, type: 'NUMBER'|'GEM'|'POTION', value, radius, collected }
+        let obstacles = [];      // { x, y, width, height, hit }
+        let floatingTexts = [];  // { x, y, text, color, life, maxLife }
+        let particles = [];      // { x, y, vx, vy, color, size, life }
+        let bgStars = [];
+        let bgMountains = [];
+
+        function initBackgroundDecor() {
+            bgStars = [];
+            for (let i = 0; i < 45; i++) {
+                bgStars.push({
+                    x: Math.random() * V_WIDTH,
+                    y: Math.random() * (GROUND_Y - 120),
+                    r: Math.random() * 2 + 0.8,
+                    alpha: Math.random() * 0.7 + 0.3
+                });
+            }
+            bgMountains = [];
+            for (let i = 0; i < 7; i++) {
+                bgMountains.push({
+                    x: i * 200,
+                    width: 260 + Math.random() * 120,
+                    height: 110 + Math.random() * 90
+                });
+            }
+        }
+
+        function pickNumberForLevel(level, wantPrime) {
+            const cfg = LEVEL_CONFIGS[level];
+            const candidates = [];
+            for (let n = cfg.minNum; n <= cfg.maxNum; n++) {
+                if (isPrime(n) === wantPrime) {
+                    candidates.push(n);
+                }
+            }
+            // In level 2 & 3, weight tricky odd composites higher so players really practice primes vs composites
+            if (!wantPrime && level >= 2 && Math.random() < 0.65) {
+                const trickyInRange = TRICKY_COMPOSITES.filter(n => n >= cfg.minNum && n <= cfg.maxNum);
+                if (trickyInRange.length > 0) {
+                    return trickyInRange[Math.floor(Math.random() * trickyInRange.length)];
+                }
+            }
+            return candidates[Math.floor(Math.random() * candidates.length)];
+        }
+
+        function resetLevelEntities(level) {
+            groundSegments = [
+                { startX: -100, endX: 950, isPit: false }
+            ];
+            items = [];
+            obstacles = [];
+            floatingTexts = [];
+            particles = [];
+
+            player.y = GROUND_Y;
+            player.vy = 0;
+            player.jumpsLeft = 2;
+            player.isGrounded = true;
+            player.rotation = 0;
+
+            // Pre-populate chunks up to x = 2200
+            while (getLastSegmentEndX() < 2200) {
+                spawnNextChunk(level);
+            }
+        }
+
+        function getLastSegmentEndX() {
+            return groundSegments[groundSegments.length - 1].endX;
+        }
+
+        function spawnNextChunk(level) {
+            const cfg = LEVEL_CONFIGS[level];
+            const lastSeg = groundSegments[groundSegments.length - 1];
+            const startX = lastSeg.endX;
+
+            // Decide if we spawn a pit (never two pits in a row)
+            if (!lastSeg.isPit && Math.random() < cfg.pitChance) {
+                // 配合慢速模式縮小無底洞寬度，確保慢速下單跳或二段跳都能輕鬆躍過
+                const pitWidth = 85 + Math.random() * (level === 1 ? 25 : 35);
+                groundSegments.push({
+                    startX: startX,
+                    endX: startX + pitWidth,
+                    isPit: true
+                });
+
+                // Spawn an arc of sapphires or a high prime number above the pit
+                const midX = startX + pitWidth / 2;
+                if (Math.random() < 0.6) {
+                    const isP = Math.random() < 0.6;
+                    items.push({
+                        x: midX,
+                        y: GROUND_Y - 145,
+                        type: 'NUMBER',
+                        value: pickNumberForLevel(level, isP),
+                        radius: 26,
+                        collected: false
+                    });
+                } else {
+                    for (let i = -1; i <= 1; i++) {
+                        items.push({
+                            x: midX + i * 42,
+                            y: GROUND_Y - 125 - (1 - Math.abs(i)) * 22,
+                            type: 'GEM',
+                            value: 1,
+                            radius: 15,
+                            collected: false
+                        });
+                    }
+                }
+                return;
+            }
+
+            // Solid platform segment
+            const segWidth = 340 + Math.random() * 260;
+            const endX = startX + segWidth;
+            groundSegments.push({
+                startX: startX,
+                endX: endX,
+                isPit: false
+            });
+
+            // Populate this solid platform with obstacles, numbers, potions, and sapphires
+            const safeStart = startX + 75;
+            const safeEnd = endX - 75;
+            if (safeEnd - safeStart < 120) return;
+
+            // Pattern selector
+            const patternRoll = Math.random();
+
+            if (patternRoll < 0.38) {
+                // Pattern A: High vs Low Number Choice (One Prime, One Composite)
+                const choiceX = safeStart + (safeEnd - safeStart) * 0.45;
+                const primeHigh = Math.random() < 0.5;
+                items.push({
+                    x: choiceX,
+                    y: GROUND_Y - 150,
+                    type: 'NUMBER',
+                    value: pickNumberForLevel(level, primeHigh),
+                    radius: 26,
+                    collected: false
+                });
+                items.push({
+                    x: choiceX,
+                    y: GROUND_Y - 42,
+                    type: 'NUMBER',
+                    value: pickNumberForLevel(level, !primeHigh),
+                    radius: 26,
+                    collected: false
+                });
+
+                // Trailing sapphires
+                for (let g = 0; g < 3; g++) {
+                    items.push({
+                        x: choiceX + 95 + g * 45,
+                        y: GROUND_Y - 35,
+                        type: 'GEM',
+                        value: 1,
+                        radius: 15,
+                        collected: false
+                    });
+                }
+            } else if (patternRoll < 0.72) {
+                // Pattern B: Ground Obstacle + Overhead Number or Red Potion
+                const obsX = safeStart + 60 + Math.random() * 80;
+                obstacles.push({
+                    x: obsX,
+                    y: GROUND_Y,
+                    width: 40,
+                    height: 44,
+                    hit: false
+                });
+
+                // Item above obstacle when jumping over it
+                if (Math.random() < 0.22) {
+                    items.push({
+                        x: obsX + 20,
+                        y: GROUND_Y - 140,
+                        type: 'POTION',
+                        value: 1,
+                        radius: 20,
+                        collected: false
+                    });
+                } else {
+                    items.push({
+                        x: obsX + 20,
+                        y: GROUND_Y - 140,
+                        type: 'NUMBER',
+                        value: pickNumberForLevel(level, Math.random() < 0.65),
+                        radius: 26,
+                        collected: false
+                    });
+                }
+
+                // Second number further along the platform
+                if (safeEnd - obsX > 180) {
+                    items.push({
+                        x: obsX + 165,
+                        y: GROUND_Y - (Math.random() < 0.5 ? 42 : 125),
+                        type: 'NUMBER',
+                        value: pickNumberForLevel(level, Math.random() < 0.55),
+                        radius: 26,
+                        collected: false
+                    });
+                }
+            } else {
+                // Pattern C: Sequence of two numbers + Sapphire trail + occasional Red Potion
+                const firstX = safeStart + 40;
+                const secondX = firstX + 175;
+                items.push({
+                    x: firstX,
+                    y: GROUND_Y - (Math.random() < 0.5 ? 42 : 130),
+                    type: 'NUMBER',
+                    value: pickNumberForLevel(level, Math.random() < 0.55),
+                    radius: 26,
+                    collected: false
+                });
+
+                if (secondX < safeEnd) {
+                    items.push({
+                        x: secondX,
+                        y: GROUND_Y - (Math.random() < 0.5 ? 42 : 130),
+                        type: 'NUMBER',
+                        value: pickNumberForLevel(level, Math.random() < 0.55),
+                        radius: 26,
+                        collected: false
+                    });
+                }
+
+                // Chance of potion or gems between them
+                if (Math.random() < 0.25) {
+                    items.push({
+                        x: (firstX + secondX) / 2,
+                        y: GROUND_Y - 175,
+                        type: 'POTION',
+                        value: 1,
+                        radius: 20,
+                        collected: false
+                    });
+                } else {
+                    items.push({
+                        x: (firstX + secondX) / 2,
+                        y: GROUND_Y - 35,
+                        type: 'GEM',
+                        value: 1,
+                        radius: 15,
+                        collected: false
+                    });
+                }
+            }
+        }
+
+        function triggerJump() {
+            if (gameState.status !== 'PLAYING') return;
+
+            if (player.isGrounded) {
+                player.vy = player.jumpForce;
+                player.isGrounded = false;
+                player.jumpsLeft = 1;
+                sfx.jump(false);
+                spawnParticles(player.x, player.y, '#38bdf8', 8);
+            } else if (player.jumpsLeft > 0) {
+                player.vy = player.doubleJumpForce;
+                player.jumpsLeft = 0;
+                sfx.jump(true);
+                spawnParticles(player.x, player.y - 10, '#f472b6', 12);
+            }
+        }
+
+        function spawnFloatingText(x, y, text, color) {
+            floatingTexts.push({
+                x,
+                y,
+                text,
+                color,
+                life: 0,
+                maxLife: 0.85
+            });
+        }
+
+        function spawnParticles(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 60 + Math.random() * 180;
+                particles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 40,
+                    color,
+                    size: 3 + Math.random() * 4,
+                    life: 0.45 + Math.random() * 0.25
+                });
+            }
+        }
+
+        let toastTimeout = null;
+        function showMathToast(message, isGood) {
+            const toast = document.getElementById('math-toast');
+            const inner = document.getElementById('math-toast-inner');
+            inner.textContent = message;
+            if (isGood) {
+                inner.className = "px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm shadow-lg border backdrop-blur-md bg-emerald-950/90 border-emerald-400 text-emerald-200";
+            } else {
+                inner.className = "px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm shadow-lg border backdrop-blur-md bg-rose-950/90 border-rose-400 text-rose-200";
+            }
+            toast.classList.remove('opacity-0', '-translate-y-2');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-2');
+            }, 2200);
+        }
+
+        function updateHUD() {
+            // Hearts
+            const heartsContainer = document.getElementById('hearts-display');
+            let heartsHTML = '';
+            for (let i = 0; i < gameState.maxHearts; i++) {
+                if (i < gameState.hearts) {
+                    heartsHTML += `<span class="text-base sm:text-lg drop-shadow">❤️</span>`;
+                } else {
+                    heartsHTML += `<span class="text-base sm:text-lg opacity-25">🖤</span>`;
+                }
+            }
+            heartsContainer.innerHTML = heartsHTML;
+
+            // Level & Range
+            const cfg = LEVEL_CONFIGS[gameState.level];
+            document.getElementById('level-num').textContent = gameState.level;
+            document.getElementById('level-range-text').textContent = `範圍：${cfg.minNum} ~ ${cfg.maxNum}`;
+
+            // Progress
+            const pct = Math.min(100, Math.floor((gameState.distance / cfg.targetDistance) * 100));
+            document.getElementById('progress-percent').textContent = `${pct}%`;
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+
+            // Score & Combo
+            document.getElementById('score-display').textContent = gameState.score;
+            const comboBadge = document.getElementById('combo-badge');
+            if (gameState.combo >= 2) {
+                comboBadge.classList.remove('hidden');
+                comboBadge.textContent = `Combo x${gameState.combo}`;
+            } else {
+                comboBadge.classList.add('hidden');
+            }
+        }
+
+        function isGroundBeneath(x) {
+            for (const seg of groundSegments) {
+                if (x >= seg.startX && x <= seg.endX) {
+                    return !seg.isPit;
+                }
+            }
+            return true;
+        }
+
+        function updateGame(dt) {
+            const cfg = LEVEL_CONFIGS[gameState.level];
+            const moveDX = cfg.speed * gameState.speedMultiplier * dt;
+
+            gameState.distance += moveDX;
+            if (gameState.invincibleTimer > 0) gameState.invincibleTimer -= dt;
+            if (gameState.screenShake > 0) gameState.screenShake = Math.max(0, gameState.screenShake - dt * 25);
+
+            // Check Level Complete
+            if (gameState.distance >= cfg.targetDistance) {
+                handleLevelComplete();
+                return;
+            }
+
+            // Scroll world segments
+            for (const seg of groundSegments) {
+                seg.startX -= moveDX;
+                seg.endX -= moveDX;
+            }
+            if (groundSegments.length > 0 && groundSegments[0].endX < -200) {
+                groundSegments.shift();
+            }
+            while (getLastSegmentEndX() < V_WIDTH + 600) {
+                spawnNextChunk(gameState.level);
+            }
+
+            // Parallax mountains
+            for (const m of bgMountains) {
+                m.x -= moveDX * 0.2;
+                if (m.x + m.width < 0) {
+                    m.x = V_WIDTH + Math.random() * 100;
+                }
+            }
+
+            // Player Physics
+            const footSupport = isGroundBeneath(player.x - 10) || isGroundBeneath(player.x + 10);
+
+            if (player.isGrounded && !footSupport) {
+                // Walked over a pit
+                player.isGrounded = false;
+            }
+
+            if (!player.isGrounded) {
+                const prevY = player.y;
+                player.vy += player.gravity * dt;
+                player.y += player.vy * dt;
+
+                // Land on ground if falling and passing GROUND_Y while over solid ground
+                if (player.vy >= 0 && prevY <= GROUND_Y + 8 && player.y >= GROUND_Y && footSupport) {
+                    player.y = GROUND_Y;
+                    player.vy = 0;
+                    player.isGrounded = true;
+                    player.jumpsLeft = 2;
+                    player.rotation = 0;
+                }
+            } else {
+                player.runCycle += dt * 14 * gameState.speedMultiplier;
+            }
+
+            // Check Pit Death (falling into hole directly ends game)
+            if (player.y > V_HEIGHT + 45) {
+                sfx.pitFall();
+                endGame(false, "掉進無底洞裡了！（掉到洞裡直接遊戲結束）");
+                return;
+            }
+
+            // Player Bounding Box
+            const pLeft = player.x - player.width / 2 + 6;
+            const pRight = player.x + player.width / 2 - 6;
+            const pTop = player.y - player.height + 6;
+            const pBottom = player.y - 4;
+            const pCenterX = player.x;
+            const pCenterY = player.y - player.height / 2;
+
+            // Update & Check Obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.x -= moveDX;
+
+                if (!obs.hit) {
+                    const oLeft = obs.x + 6;
+                    const oRight = obs.x + obs.width - 6;
+                    const oTop = obs.y - obs.height + 8;
+                    const oBottom = obs.y;
+
+                    if (pRight > oLeft && pLeft < oRight && pBottom > oTop && pTop < oBottom) {
+                        obs.hit = true;
+                        if (gameState.invincibleTimer <= 0) {
+                            gameState.hearts -= 1;
+                            gameState.combo = 0;
+                            gameState.invincibleTimer = 1.0;
+                            gameState.screenShake = 8;
+                            sfx.hurt();
+                            spawnParticles(pCenterX, pCenterY, '#ef4444', 16);
+                            spawnFloatingText(player.x, player.y - 60, "撞到障礙物 -1 ❤️", "#f87171");
+                            updateHUD();
+
+                            if (gameState.hearts <= 0) {
+                                endGame(false, "撞到障礙物，愛心歸零了！");
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                if (obs.x + obs.width < -100) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Update & Check Collectible Items
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                item.x -= moveDX;
+
+                if (!item.collected) {
+                    const dx = pCenterX - item.x;
+                    const dy = pCenterY - item.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist < item.radius + 22) {
+                        item.collected = true;
+                        handleItemCollected(item);
+                        if (gameState.status !== 'PLAYING') return;
+                    }
+                }
+
+                if (item.x < -100 || item.collected) {
+                    items.splice(i, 1);
+                }
+            }
+
+            // Update Floating Texts
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.life += dt;
+                ft.y -= 45 * dt;
+                if (ft.life >= ft.maxLife) {
+                    floatingTexts.splice(i, 1);
+                }
+            }
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const pt = particles[i];
+                pt.x += pt.vx * dt;
+                pt.y += pt.vy * dt;
+                pt.life -= dt;
+                if (pt.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            updateHUD();
+        }
+
+        function handleItemCollected(item) {
+            if (item.type === 'GEM') {
+                gameState.score += 1;
+                sfx.gemGood();
+                spawnParticles(item.x, item.y, '#38bdf8', 7);
+                spawnFloatingText(item.x, item.y - 15, "+1 💎", "#38bdf8");
+            } else if (item.type === 'POTION') {
+                if (gameState.hearts < gameState.maxHearts) {
+                    gameState.hearts += 1;
+                    spawnFloatingText(item.x, item.y - 15, "+1 ❤️ 紅藥水", "#f472b6");
+                } else {
+                    gameState.score += 5;
+                    spawnFloatingText(item.x, item.y - 15, "滿血 +5分 🧪", "#f472b6");
+                }
+                sfx.potionGood();
+                spawnParticles(item.x, item.y, '#ec4899', 12);
+            } else if (item.type === 'NUMBER') {
+                const n = item.value;
+                const explain = getFactorExplanation(n);
+
+                if (isPrime(n)) {
+                    // Prime Number: +10 points
+                    gameState.score += 10;
+                    gameState.combo += 1;
+                    gameState.primesCollected += 1;
+                    sfx.primeGood();
+                    spawnParticles(item.x, item.y, '#34d399', 15);
+                    spawnFloatingText(item.x, item.y - 20, `質數 ${n} (+10分)`, "#4ade80");
+                    showMathToast(`✅ 正確！${explain}`, true);
+                    gameState.historyLog.unshift({ num: n, correct: true, text: explain });
+                } else {
+                    // Non-Prime Number: -5 points and -1 Heart
+                    gameState.score = Math.max(0, gameState.score - 5);
+                    gameState.hearts -= 1;
+                    gameState.combo = 0;
+                    gameState.screenShake = 8;
+                    sfx.hurt();
+                    spawnParticles(item.x, item.y, '#fb7185', 16);
+                    spawnFloatingText(item.x, item.y - 20, `非質數 ${n} (-5分 & -1❤️)`, "#fb7185");
+                    showMathToast(`❌ 小心！${explain}`, false);
+                    gameState.historyLog.unshift({ num: n, correct: false, text: explain });
+
+                    if (gameState.hearts <= 0) {
+                        updateHUD();
+                        endGame(false, `誤食非質數「${n}」（${explain}），愛心歸零！`);
+                        return;
+                    }
+                }
+            }
+        }
+
+        function renderGame() {
+            const cfg = LEVEL_CONFIGS[gameState.level];
+
+            ctx.save();
+            if (gameState.screenShake > 0) {
+                const sx = (Math.random() - 0.5) * gameState.screenShake;
+                const sy = (Math.random() - 0.5) * gameState.screenShake;
+                ctx.translate(sx, sy);
+            }
+
+            // 1. Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+            skyGrad.addColorStop(0, cfg.skyTop);
+            skyGrad.addColorStop(1, cfg.skyBottom);
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            // 2. Stars
+            for (const st of bgStars) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${st.alpha})`;
+                ctx.beginPath();
+                ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 3. Parallax Mountains
+            ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
+            for (const m of bgMountains) {
+                ctx.beginPath();
+                ctx.moveTo(m.x, GROUND_Y);
+                ctx.lineTo(m.x + m.width / 2, GROUND_Y - m.height);
+                ctx.lineTo(m.x + m.width, GROUND_Y);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // 4. Ground Segments & Pits
+            for (const seg of groundSegments) {
+                if (seg.isPit) {
+                    // Draw pit warning glow
+                    const pitGrad = ctx.createLinearGradient(0, GROUND_Y, 0, V_HEIGHT);
+                    pitGrad.addColorStop(0, "rgba(239, 68, 68, 0.25)");
+                    pitGrad.addColorStop(1, "rgba(0, 0, 0, 0.95)");
+                    ctx.fillStyle = pitGrad;
+                    ctx.fillRect(seg.startX, GROUND_Y, seg.endX - seg.startX, V_HEIGHT - GROUND_Y);
+                } else {
+                    // Dirt base
+                    ctx.fillStyle = cfg.dirtColor;
+                    ctx.fillRect(seg.startX, GROUND_Y, seg.endX - seg.startX, V_HEIGHT - GROUND_Y);
+
+                    // Top grass/neon surface strip
+                    ctx.fillStyle = cfg.groundColor;
+                    ctx.fillRect(seg.startX, GROUND_Y, seg.endX - seg.startX, 14);
+                }
+            }
+
+            // 5. Obstacles (Spikes / Crates)
+            for (const obs of obstacles) {
+                ctx.save();
+                ctx.translate(obs.x, obs.y);
+                // Warning hazard triangle spike
+                const grad = ctx.createLinearGradient(0, -obs.height, 0, 0);
+                grad.addColorStop(0, "#fb923c");
+                grad.addColorStop(1, "#dc2626");
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(obs.width / 2, -obs.height);
+                ctx.lineTo(obs.width, 0);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.strokeStyle = "#fef08a";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 6. Collectible Items (Numbers, Sapphires, Red Potions)
+            for (const item of items) {
+                if (item.collected) continue;
+                ctx.save();
+                ctx.translate(item.x, item.y);
+
+                if (item.type === 'GEM') {
+                    // Sapphire Diamond
+                    ctx.fillStyle = "#38bdf8";
+                    ctx.strokeStyle = "#e0f2fe";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -item.radius);
+                    ctx.lineTo(item.radius * 0.85, 0);
+                    ctx.lineTo(0, item.radius);
+                    ctx.lineTo(-item.radius * 0.85, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (item.type === 'POTION') {
+                    // Red Heart Potion
+                    ctx.fillStyle = "#f43f5e";
+                    ctx.strokeStyle = "#fecdd3";
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 4, 14, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Bottle neck
+                    ctx.fillStyle = "#e2e8f0";
+                    ctx.fillRect(-5, -15, 10, 6);
+                    // Cross / Heart icon
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "bold 12px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("❤️", 0, 5);
+                } else if (item.type === 'NUMBER') {
+                    // Number Orb (Neutral color so player must judge by math!)
+                    const orbGrad = ctx.createRadialGradient(-6, -6, 4, 0, 0, item.radius);
+                    orbGrad.addColorStop(0, "#fef3c7");
+                    orbGrad.addColorStop(0.7, "#fbbf24");
+                    orbGrad.addColorStop(1, "#d97706");
+
+                    ctx.fillStyle = orbGrad;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.stroke();
+
+                    // Number Text
+                    ctx.fillStyle = "#0f172a";
+                    ctx.font = "900 22px 'Fredoka', 'Noto Sans TC', sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(item.value, 0, 1);
+                }
+
+                ctx.restore();
+            }
+
+            // 7. Player Character (Parkour Runner)
+            drawPlayer();
+
+            // 8. Particles
+            for (const pt of particles) {
+                ctx.fillStyle = pt.color;
+                ctx.globalAlpha = Math.max(0, pt.life * 1.5);
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            // 9. Floating Score/Status Texts
+            for (const ft of floatingTexts) {
+                const alpha = 1 - ft.life / ft.maxLife;
+                ctx.save();
+                ctx.font = "900 18px 'Noto Sans TC', sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = ft.color;
+                ctx.globalAlpha = Math.max(0, alpha);
+                ctx.strokeStyle = "#0f172a";
+                ctx.lineWidth = 4;
+                ctx.strokeText(ft.text, ft.x, ft.y);
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            // Blink if invincible
+            if (gameState.invincibleTimer > 0 && Math.floor(gameState.invincibleTimer * 12) % 2 === 0) {
+                ctx.globalAlpha = 0.45;
+            }
+
+            const bob = player.isGrounded ? Math.sin(player.runCycle) * 3 : 0;
+            const legSwing = player.isGrounded ? Math.sin(player.runCycle) * 10 : 8;
+
+            // Legs
+            ctx.strokeStyle = "#38bdf8";
+            ctx.lineWidth = 6;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(-4, -16 + bob);
+            ctx.lineTo(-4 - legSwing, -2);
+            ctx.moveTo(4, -16 + bob);
+            ctx.lineTo(4 + legSwing, -2);
+            ctx.stroke();
+
+            // Body / Cape
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.moveTo(-12, -38 + bob);
+            ctx.lineTo(-28 - Math.abs(legSwing) * 0.5, -24 + bob);
+            ctx.lineTo(-10, -20 + bob);
+            ctx.closePath();
+            ctx.fill();
+
+            // Torso
+            ctx.fillStyle = "#0284c7";
+            ctx.beginPath();
+            ctx.roundRect(-14, -42 + bob, 28, 26, 8);
+            ctx.fill();
+            ctx.strokeStyle = "#e0f2fe";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Head
+            ctx.fillStyle = "#fde047";
+            ctx.beginPath();
+            ctx.arc(0, -50 + bob, 13, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Cool Visor
+            ctx.fillStyle = "#0f172a";
+            ctx.fillRect(2, -55 + bob, 11, 6);
+            ctx.fillStyle = "#22d3ee";
+            ctx.fillRect(4, -54 + bob, 8, 4);
+
+            ctx.restore();
+        }
+
+        function resizeCanvas() {
+            canvas.width = V_WIDTH;
+            canvas.height = V_HEIGHT;
+            renderGame();
+        }
+
+        let lastFrameTime = performance.now();
+        function gameLoop(now) {
+            const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+            lastFrameTime = now;
+
+            if (gameState.status === 'PLAYING') {
+                updateGame(dt);
+            }
+            renderGame();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startNewGame(startLevel = 1, keepScore = false) {
+            sfx.init();
+            gameState.level = startLevel;
+            if (!keepScore) {
+                gameState.score = 0;
+                gameState.hearts = 3;
+                gameState.primesCollected = 0;
+                gameState.historyLog = [];
+            }
+            gameState.combo = 0;
+            gameState.distance = 0;
+            gameState.invincibleTimer = 0;
+            gameState.screenShake = 0;
+
+            resetLevelEntities(startLevel);
+            updateHUD();
+
+            document.getElementById('screen-start').classList.add('hidden');
+            document.getElementById('screen-level-up').classList.add('hidden');
+            document.getElementById('screen-gameover').classList.add('hidden');
+            document.getElementById('btn-pause').classList.remove('hidden');
+
+            gameState.status = 'PLAYING';
+        }
+
+        function handleLevelComplete() {
+            sfx.levelClear();
+            if (gameState.level < 3) {
+                gameState.status = 'LEVEL_UP';
+                const nextLv = gameState.level + 1;
+                const nextCfg = LEVEL_CONFIGS[nextLv];
+                document.getElementById('level-clear-title').textContent = `🎉 第 ${gameState.level} 關挑戰成功！`;
+                document.getElementById('level-clear-desc').textContent = `即將進入「${nextCfg.name}」（數字範圍：${nextCfg.minNum} ~ ${nextCfg.maxNum}）`;
+                document.getElementById('level-clear-score').textContent = gameState.score;
+                document.getElementById('level-clear-hearts').textContent = `${gameState.hearts} ❤️`;
+                document.getElementById('screen-level-up').classList.remove('hidden');
+            } else {
+                // Cleared all 3 levels!
+                endGame(true, "恭喜你突破全部三關！100 以內的質數已經完全難不倒你了！");
+            }
+        }
+
+        function endGame(isVictory, reasonText) {
+            gameState.status = 'GAMEOVER';
+            document.getElementById('btn-pause').classList.add('hidden');
+
+            const emojiEl = document.getElementById('end-emoji');
+            const titleEl = document.getElementById('end-title');
+            const reasonEl = document.getElementById('end-reason');
+
+            if (isVictory) {
+                emojiEl.textContent = "👑";
+                titleEl.textContent = "全破關！質數跑酷大師";
+                titleEl.className = "text-2xl sm:text-3xl font-black text-amber-400 mb-1";
+                reasonEl.className = "text-xs sm:text-sm text-emerald-300 font-bold mb-4";
+            } else {
+                emojiEl.textContent = "💥";
+                titleEl.textContent = "挑戰失敗";
+                titleEl.className = "text-2xl sm:text-3xl font-black text-white mb-1";
+                reasonEl.className = "text-xs sm:text-sm text-rose-300 font-bold mb-4";
+            }
+
+            reasonEl.textContent = reasonText;
+            document.getElementById('end-score').textContent = gameState.score;
+            document.getElementById('end-primes').textContent = gameState.primesCollected;
+            document.getElementById('end-level').textContent = `${gameState.level} / 3`;
+
+            // Populate Math Review List
+            const reviewList = document.getElementById('review-list');
+            if (gameState.historyLog.length === 0) {
+                reviewList.innerHTML = `<div class="text-slate-500">本局尚未收集到任何數字球，再試一次吧！</div>`;
+            } else {
+                reviewList.innerHTML = gameState.historyLog.slice(0, 8).map(item => `
+                    <div class="flex items-center gap-2 py-1 border-b border-slate-800/80">
+                        <span class="px-2 py-0.5 rounded font-bold num-font ${item.correct ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}">
+                            ${item.correct ? '✅ 質數' : '❌ 非質數'} ${item.num}
+                        </span>
+                        <span class="text-slate-300">${item.text}</span>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('screen-gameover').classList.remove('hidden');
+        }
+
+        // --- Populate 100 Primes Reference Chart Modal ---
+        function buildPrimeReferenceGrid() {
+            const grid = document.getElementById('prime-grid');
+            const detailBar = document.getElementById('prime-detail-bar');
+            let html = '';
+            for (let n = 1; n <= 100; n++) {
+                const prime = isPrime(n);
+                const bgClass = prime
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-sm'
+                    : (n === 1 ? 'bg-amber-500/30 text-amber-200 border border-amber-500/40' : 'bg-slate-800 hover:bg-slate-700 text-slate-300');
+                html += `<button data-num="${n}" class="prime-cell py-2 rounded-lg text-xs sm:text-sm num-font transition ${bgClass}">${n}</button>`;
+            }
+            grid.innerHTML = html;
+
+            grid.querySelectorAll('.prime-cell').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const num = parseInt(btn.getAttribute('data-num'), 10);
+                    const info = getFactorExplanation(num);
+                    detailBar.textContent = `🔍 數字 ${num}：${info}`;
+                    detailBar.className = isPrime(num)
+                        ? "mt-4 bg-emerald-950/90 border border-emerald-500/50 rounded-xl p-3 text-xs sm:text-sm text-center font-bold text-emerald-300"
+                        : "mt-4 bg-rose-950/90 border border-rose-500/50 rounded-xl p-3 text-xs sm:text-sm text-center font-bold text-rose-300";
+                });
+            });
+        }
+
+        window.onload = function () {
+            initBackgroundDecor();
+            resetLevelEntities(1);
+            resizeCanvas();
+            buildPrimeReferenceGrid();
+            updateHUD();
+
+            window.addEventListener('resize', resizeCanvas);
+
+            // Keyboard Controls
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+                    e.preventDefault();
+                    if (gameState.status === 'PLAYING') {
+                        triggerJump();
+                    }
+                } else if (e.code === 'KeyP') {
+                    togglePause();
+                }
+            });
+
+            // Canvas Touch / Click Jump
+            const canvasEl = document.getElementById('gameCanvas');
+            canvasEl.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                if (gameState.status === 'PLAYING') {
+                    triggerJump();
+                }
+            });
+
+            // Dedicated Bottom Jump Button
+            const touchJumpBtn = document.getElementById('btn-touch-jump');
+            touchJumpBtn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                if (gameState.status === 'PLAYING') {
+                    triggerJump();
+                } else if (gameState.status === 'START') {
+                    startNewGame(gameState.selectedStartLevel, false);
+                }
+            });
+
+            // Start & Retry Buttons
+            document.getElementById('btn-start-game').addEventListener('click', () => {
+                startNewGame(gameState.selectedStartLevel, false);
+            });
+
+            document.getElementById('btn-next-level').addEventListener('click', () => {
+                startNewGame(gameState.level + 1, true);
+            });
+
+            document.getElementById('btn-retry-same').addEventListener('click', () => {
+                gameState.hearts = 3;
+                startNewGame(gameState.level, true);
+            });
+
+            document.getElementById('btn-restart-all').addEventListener('click', () => {
+                startNewGame(1, false);
+            });
+
+            // Speed Select Buttons (Default: Slow for educational thinking time)
+            document.querySelectorAll('.spd-select-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const spd = parseFloat(btn.getAttribute('data-spd'));
+                    gameState.speedMultiplier = spd;
+                    document.querySelectorAll('.spd-select-btn').forEach(b => {
+                        b.className = "spd-select-btn px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800";
+                    });
+                    btn.className = "spd-select-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-400 text-slate-950";
+                });
+            });
+
+            // Level Select Quick Buttons
+            document.querySelectorAll('.lv-select-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const lv = parseInt(btn.getAttribute('data-lv'), 10);
+                    gameState.selectedStartLevel = lv;
+                    document.querySelectorAll('.lv-select-btn').forEach(b => {
+                        b.className = "lv-select-btn px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800";
+                    });
+                    btn.className = "lv-select-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-500 text-slate-950";
+                    document.getElementById('btn-start-game').textContent = `🚀 開始第 ${lv} 關挑戰`;
+                    startNewGame(lv, false);
+                });
+            });
+
+            // Sound Toggle
+            document.getElementById('btn-sound').addEventListener('click', () => {
+                sfx.enabled = !sfx.enabled;
+                document.getElementById('sound-icon').textContent = sfx.enabled ? '🔊' : '🔇';
+            });
+
+            // Pause Toggle
+            function togglePause() {
+                const pauseBtn = document.getElementById('btn-pause');
+                if (gameState.status === 'PLAYING') {
+                    gameState.status = 'PAUSED';
+                    pauseBtn.textContent = '▶️ 繼續';
+                } else if (gameState.status === 'PAUSED') {
+                    gameState.status = 'PLAYING';
+                    lastFrameTime = performance.now();
+                    pauseBtn.textContent = '⏸️ 暫停';
+                }
+            }
+            document.getElementById('btn-pause').addEventListener('click', togglePause);
+
+            // Modals
+            const modalPrimes = document.getElementById('modal-primes');
+            const modalRules = document.getElementById('modal-rules');
+
+            document.getElementById('btn-prime-chart').addEventListener('click', () => {
+                if (gameState.status === 'PLAYING') togglePause();
+                modalPrimes.classList.remove('hidden');
+            });
+            document.getElementById('close-primes-modal').addEventListener('click', () => {
+                modalPrimes.classList.add('hidden');
+            });
+
+            document.getElementById('btn-rules').addEventListener('click', () => {
+                if (gameState.status === 'PLAYING') togglePause();
+                modalRules.classList.remove('hidden');
+            });
+            document.getElementById('close-rules-modal').addEventListener('click', () => {
+                modalRules.classList.add('hidden');
+            });
+
+            // Start Animation Loop
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
